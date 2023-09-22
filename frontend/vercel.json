@@ -1,0 +1,12 @@
+{
+    "version": 2,
+    "name": "frontend-app",
+    "builds": [
+      { "src": "App.js", "use": "@vercel/static-build" }
+    ],
+    "routes": [
+      { "src": "/static/(.*)", "dest": "/static/$1" },
+      { "src": "/.*", "dest": "App.js" }
+    ]
+  }
+  

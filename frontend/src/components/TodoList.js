@@ -20,7 +20,7 @@ const TodoList = () => {
 
   useEffect(() => {
     if (userId) {
-        fetch(`http://localhost:4000/user/${userId}`)
+        fetch(`https://new-todo-app-chi.vercel.app/user/${userId}`)
         .then((response) => response.json())
         .then((data) => {
           // Set user's name in state
@@ -30,7 +30,7 @@ const TodoList = () => {
           console.error('Error fetching user name:', error);
         });
       // Fetch todos for the user using userId
-      fetch(`http://localhost:4000/user/${userId}`)
+      fetch(`https://new-todo-app-chi.vercel.app/user/${userId}`)
         .then((response) => response.json())
         .then((data) => {
           // Set todos in state
@@ -71,7 +71,7 @@ const TodoList = () => {
         scheduledDate: customISOString,
       });
       // Send a POST request to schedule the todo
-      fetch('http://localhost:4000/schedule-email', {
+      fetch('https://new-todo-app-chi.vercel.app/schedule-email', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -102,7 +102,7 @@ const TodoList = () => {
   const handleAddTodo = () => {
     if (userId && todoItem.trim() !== '') {
       // Send a POST request to add the todo item
-      fetch('http://localhost:4000/addtodo', {
+      fetch('https://new-todo-app-chi.vercel.app/addtodo', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -144,7 +144,7 @@ const TodoList = () => {
       }
   
       // Send a POST request to edit the todo item
-      fetch('http://localhost:4000/edittodo', {
+      fetch('https://new-todo-app-chi.vercel.app/edittodo', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -185,7 +185,7 @@ const TodoList = () => {
   const handleDelete = (todoId) => {
     if (userId) {
       // Send a POST request to delete the todo item
-      fetch('http://localhost:4000/deletetodo', {
+      fetch('https://new-todo-app-chi.vercel.app/deletetodo', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
