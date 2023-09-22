@@ -2,8 +2,15 @@ const express =  require("express")
 const app = express()
 const mongoose = require("mongoose")
 const cors = require("cors");
+require('dotenv').config();
+const axios = require("axios")
+const { spawn } = require('child_process');
+const schedule = require('node-schedule');
 app.use(express.json())
 app.use(cors());
+
+
+const pendingEmails = [];
 const mongoUrl = "mongodb+srv://kumarsaarthak916:sarthaktodo@cluster0.ykvtpvu.mongodb.net/?retryWrites=true&w=majority"
 
 mongoose.connect(mongoUrl,{
@@ -189,4 +196,95 @@ app.post("/register", async (req, res) => {
       res.status(500).json({ status: "Something went wrong" });
     }
   });
+  
+  function sendEmailNotification(toEmail, subject, message) {
+    const pythonProcess = spawn('python', ['email-notifier.py', toEmail, subject, message]);
+  
+    pythonProcess.stdout.on('data', (data) => {
+      console.log(`Python Script Output: ${data}`);
+    });
+  
+    pythonProcess.stderr.on('data', (data) => {
+      console.error(`Python Script Error: ${data}`);
+    });
+  
+    pythonProcess.on('close', (code) => {
+      console.log(`Python Script exited with code ${code}`);
+    });
+  }
+ 
+
+const checkPendingEmails = schedule.scheduleJob('*/1 * * * *', async () => {
+  try {
+    // Check the database (or an in-memory array) for pending email tasks
+    const currentTime = new Date();
+
+    for (const emailTask of pendingEmails) {
+      // Check if the scheduled time has passed
+      if (emailTask.scheduledDate <= currentTime) {
+        // Send the email from the user associated with the task
+        const user = await User.findOne({ _id: emailTask.userId });
+
+        if (user) {
+          const message = emailTask.message;
+          sendEmailNotification(user.email, "To-do Notification", message);
+
+          // Remove the task from the data source
+          const index = pendingEmails.indexOf(emailTask);
+          if (index !== -1) {
+            pendingEmails.splice(index, 1);
+          }
+        }
+      }
+    }
+  } catch (error) {
+    console.error(error);
+  }
+});
+
+// ... Rest of your code ...
+
+// API endpoint to schedule email notifications
+app.post("/schedule-email", async (req, res) => {
+  try {
+    const { userId, todoIndex, scheduledDate } = req.body;
+
+    // Parse the scheduledDate string into a Date object
+    const parsedScheduledDate = new Date(scheduledDate);
+
+    // Ensure the scheduled time is in the future
+    if (parsedScheduledDate <= new Date()) {
+      return res.status(400).json({ status: "Scheduled time must be in the future" });
+    }
+
+    // Find the user by userId (assuming you have a User model)
+    const user = await User.findOne({ _id: userId });
+
+    if (!user) {
+      return res.status(404).json({ status: "User not found" });
+    }
+
+    // Get the todo item at the specified index
+    const todoItem = user.todos[todoIndex];
+
+    // Calculate the minute and hour from the scheduledDate
+    const scheduleTime = new Date(parsedScheduledDate);
+    const minute = scheduleTime.getUTCMinutes();
+    const hour = scheduleTime.getUTCHours();
+
+    // Construct the scheduleExpression
+    const scheduleExpression = `${minute} ${hour} * * *`;
+
+    // Schedule the email to be sent at the specified time
+    schedule.scheduleJob(scheduleExpression, async () => {
+      const message = todoItem;
+      sendEmailNotification(user.email, "To-do Notification", message);
+    });
+
+    res.status(200).json({ status: "Email scheduled successfully" });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ status: "Something went wrong" });
+  }
+});
   

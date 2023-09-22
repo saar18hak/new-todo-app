@@ -1,6 +1,15 @@
 import React, { useEffect, useState } from 'react';
+import DatePicker from 'react-datepicker';
+import 'react-datepicker/dist/react-datepicker.css';
+import { format } from 'date-fns';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
+import {faBell,faTrash,faPenToSquare,faCheck,faXmark} from '@fortawesome/free-solid-svg-icons'
+
+
 
 const TodoList = () => {
+  const [scheduledDate, setScheduledDate] = useState(null); // State for scheduled date and time
+  const [selectedTodoId, setSelectedTodoId] = useState(null);
   const [todos, setTodos] = useState([]);
   const [todoItem, setTodoItem] = useState(''); // State for input field
   const [editIndex, setEditIndex] = useState(-1); // Index of todo being edited
@@ -32,6 +41,63 @@ const TodoList = () => {
         });
     }
   }, []);
+
+
+  const handleScheduleClick = (todoId) => {
+    setSelectedTodoId(todoId);
+  };
+
+  const handleScheduleSubmit = () => {
+    if (userId && selectedTodoId !== null && scheduledDate !== null) {
+      const todoIndex = todos.findIndex((todo) => todo.id === selectedTodoId);
+
+    if (todoIndex === -1) {
+      console.error('Todo not found');
+      return;
+    }
+      // Create a new Date object with the selected date and time
+      const year = scheduledDate.getFullYear();
+      const month = String(scheduledDate.getMonth() + 1).padStart(2, '0'); // Month is 0-indexed, so we add 1
+      const day = String(scheduledDate.getDate()).padStart(2, '0');
+      const hours = String(scheduledDate.getHours()).padStart(2, '0');
+      const minutes = String(scheduledDate.getMinutes()).padStart(2, '0');
+      const seconds = String(scheduledDate.getSeconds()).padStart(2, '0');
+  
+      const customISOString = `${year}-${month}-${day}T${hours}:${minutes}:${seconds}.000Z`;
+  
+      console.log('Request Body:', {
+        userId,
+        todoIndex,
+        scheduledDate: customISOString,
+      });
+      // Send a POST request to schedule the todo
+      fetch('http://localhost:4000/schedule-email', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userId,
+          todoIndex,
+          scheduledDate: customISOString,
+        }),
+      })
+        .then((response) => response.json())
+        .then((data) => {
+          if (data.status === 'Email scheduled successfully') {
+            // Clear the selected todo and scheduled date
+            setSelectedTodoId(null);
+            setScheduledDate(null);
+          } else {
+            console.error('Error scheduling todo:', data.status);
+          }
+        })
+        .catch((error) => {
+          console.error('Error scheduling todo:', error);
+        });
+    }
+  };
+  
 
   const handleAddTodo = () => {
     if (userId && todoItem.trim() !== '') {
@@ -69,6 +135,14 @@ const TodoList = () => {
 
   const handleEdit = (todoId, updatedTodo) => {
     if (userId) {
+      // Find the todo index in the array
+      const todoIndex = todos.findIndex((todo) => todo.id === todoId);
+  
+      if (todoIndex === -1) {
+        console.error('Todo not found');
+        return;
+      }
+  
       // Send a POST request to edit the todo item
       fetch('http://localhost:4000/edittodo', {
         method: 'POST',
@@ -77,7 +151,7 @@ const TodoList = () => {
         },
         body: JSON.stringify({
           userId,
-          todoId,
+          todoIndex, // Send the todoIndex directly
           updatedTodo,
         }),
       })
@@ -86,9 +160,8 @@ const TodoList = () => {
           // Check if the todo was edited successfully
           if (data.status === 'To-do item updated successfully') {
             // Update the todo in the state
-            const updatedTodos = todos.map((todo) =>
-              todo.id === todoId ? { ...todo, text: updatedTodo } : todo
-            );
+            const updatedTodos = [...todos];
+            updatedTodos[todoIndex] = { ...updatedTodos[todoIndex], text: updatedTodo };
             setTodos(updatedTodos);
             // Clear the editing state
             setEditIndex(-1);
@@ -103,7 +176,6 @@ const TodoList = () => {
         });
     }
   };
-
   const handleEditCancel = () => {
     // Clear the editing state and edited todo
     setEditIndex(-1);
@@ -153,8 +225,8 @@ const TodoList = () => {
 </h1>
 
 
-<h2 className="text-2xl font-semibold mb-4" style={{ 
-  background: 'linear-gradient(60deg, #00ff99, #ff00cc)',
+<h2 className="text-3xl font-semibold mb-4" style={{ 
+  background: 'linear-gradient(60deg, #5DADE2, #1ABC9C )',
   WebkitBackgroundClip: 'text',
   WebkitTextFillColor: 'transparent',
 }}>
@@ -191,33 +263,62 @@ const TodoList = () => {
                   onClick={() => handleEdit(todo.id, editedTodo)}
                   className="px-2 py-1 bg-green-500 text-white rounded-md hover:bg-green-600"
                 >
-                  Save
+                  <FontAwesomeIcon icon={faCheck} />
                 </button>
                 <button
                   onClick={handleEditCancel}
                   className="px-2 py-1 bg-red-500 text-white rounded-md hover:bg-red-600"
                 >
-                  Cancel
+                  <FontAwesomeIcon icon={faXmark} />
                 </button>
               </div>
             ) : (
               <div className="flex items-center justify-between w-full">
               <span className="font-bold text-gray-700 text-lg">{todo.text}</span>
 
+              
 
-                <div className="space-x-2">
+                <div className="space-x-2 ml-5">
                   <button
                     onClick={() => setEditIndex(todo.id)}
-                    className="px-2 py-1 bg-yellow-500 text-white rounded-md hover:bg-yellow-600"
+                    className="px-2 py-1 bg-green-500 text-white rounded-md hover:bg-green-600"
                   >
-                    Edit
+                    <FontAwesomeIcon icon={faPenToSquare} />
                   </button>
                   <button
                     onClick={() => handleDelete(todo.id)}
                     className="px-2 py-1 bg-red-500 text-white rounded-md hover:bg-red-600"
                   >
-                    Delete
+                    <FontAwesomeIcon icon={faTrash} />
                   </button>
+                  {selectedTodoId === todo.id ? (
+                    // Date and Time Picker
+                    <div className="flex items-center space-x-2">
+                      <DatePicker
+                        selected={scheduledDate}
+                        onChange={(date) => setScheduledDate(date)}
+                        showTimeSelect
+                        timeFormat="HH:mm"
+                        timeIntervals={1}
+                        timeCaption="Time"
+                        dateFormat="MMMM d, yyyy h:mm aa"
+                        className="w-full px-2 py-1 border rounded-md"
+                      />
+                      <button
+                        onClick={handleScheduleSubmit}
+                        className="px-2 py-1 bg-green-500 text-white rounded-md hover:bg-green-600"
+                      >
+                        Submit
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => handleScheduleClick(todo.id)}
+                      className="px-2 py-1 bg-yellow-500 text-white rounded-md hover:bg-yellow-600"
+                    >
+                     <FontAwesomeIcon icon={faBell} />
+                    </button>
+                  )}
                 </div>
               </div>
             )}
